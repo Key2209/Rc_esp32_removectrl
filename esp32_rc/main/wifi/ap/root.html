@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1034 Robotics Config</title>
+    <style>
+        /* --- 全局变量：赛博朋克配色 --- */
+        :root {
+            --bg-color-1: #0f0c29;
+            --bg-color-2: #302b63;
+            --bg-color-3: #24243e;
+            --primary: #00f2ff; /* 霓虹青 */
+            --secondary: #7000ff; /* 霓虹紫 */
+            --text-main: #ffffff;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --input-bg: rgba(0, 0, 0, 0.3);
+        }
+
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* 动态渐变背景 */
+            background: linear-gradient(45deg, var(--bg-color-1), var(--bg-color-2), var(--bg-color-3));
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            overflow: hidden;
+        }
+
+        /* 背景动画 */
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 玻璃拟态卡片 */
+        .card {
+            width: 90%;
+            max-width: 380px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px); /* 关键：磨砂玻璃效果 */
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 顶部光效装饰 */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -50%; width: 100%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+            transform: skewX(-25deg);
+            transition: 0.5s;
+            pointer-events: none;
+        }
+
+        /* 机器人图标 (SVG) */
+        .logo-container {
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        h1 {
+            margin: 0 0 30px;
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: linear-gradient(to right, var(--primary), white);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        /* 输入框组 */
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            padding-left: 45px; /* 留出图标位置 */
+            background: var(--input-bg);
+            border: none;
+            border-radius: 30px;
+            color: white;
+            font-size: 16px;
+            transition: 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .input-group input:focus {
+            background: rgba(0,0,0,0.5);
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+        }
+
+        /* 输入框内的图标 */
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            fill: rgba(255,255,255,0.5);
+            transition: 0.3s;
+        }
+
+        .input-group input:focus + .input-icon {
+            fill: var(--primary);
+        }
+
+        /* 霓虹按钮 */
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, var(--secondary), var(--primary));
+            border: none;
+            border-radius: 30px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.6);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* 加载动画圆圈 */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .footer {
+            margin-top: 25px;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="logo-container">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C10.3431 2 9 3.34315 9 5V6H15V5C15 3.34315 13.6569 2 12 2Z" fill="#00f2ff"/>
+                <rect x="4" y="6" width="16" height="12" rx="2" fill="#ffffff" fill-opacity="0.1" stroke="#00f2ff" stroke-width="2"/>
+                <circle cx="8.5" cy="11.5" r="1.5" fill="#00f2ff"/>
+                <circle cx="15.5" cy="11.5" r="1.5" fill="#00f2ff"/>
+                <path d="M9 15H15" stroke="#00f2ff" stroke-width="2" stroke-linecap="round"/>
+                <rect x="7" y="18" width="2" height="4" rx="1" fill="#7000ff"/>
+                <rect x="15" y="18" width="2" height="4" rx="1" fill="#7000ff"/>
+                <rect x="1" y="9" width="3" height="6" rx="1.5" fill="#7000ff"/>
+                <rect x="20" y="9" width="3" height="6" rx="1.5" fill="#7000ff"/>
+            </svg>
+        </div>
+
+        <h1>1034 Robotics</h1>
+
+        <div class="input-group">
+            <input type="text" id="ssid" placeholder="WiFi SSID" required>
+            <svg class="input-icon" viewBox="0 0 24 24">
+                <path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21L24 8.98C20.93 5.9 16.69 4 12 4ZM12 16C10.9 16 10 15.1 10 14C10 12.9 10.9 12 12 12C13.1 12 14 12.9 14 14C14 15.1 13.1 16 12 16Z"/>
+            </svg>
+        </div>
+
+        <div class="input-group">
+            <input type="password" id="password" placeholder="Password" required>
+            <svg class="input-icon" viewBox="0 0 24 24">
+                <path d="M18 8H17V6C17 3.24 14.76 1 12 1C9.24 1 7 3.24 7 6V8H6C4.9 8 4 8.9 4 10V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V10C20 8.9 19.1 8 18 8ZM12 17C10.9 17 10 16.1 10 15C10 13.9 10.9 13 12 13C13.1 13 14 13.9 14 15C14 16.1 13.1 17 12 17ZM9 8V6C9 4.34 10.34 3 12 3C13.66 3 15 4.34 15 6V8H9Z"/>
+            </svg>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="devname" placeholder="Device Name">
+            <svg class="input-icon" viewBox="0 0 24 24">
+                <path d="M20 10V8H22V10H20ZM20 16V14H22V16H20ZM20 13V11H22V13H20ZM13 3H6C4.9 3 4 3.9 4 5V21H16V19H6V5H13V3ZM18 5H15V3H18V5Z"/>
+            </svg>
+        </div>
+
+        <button onclick="submitConfig()" id="submitBtn">
+            <span id="btnText">确定并重启</span>
+            <div class="spinner" id="loadingSpinner"></div>
+        </button>
+        
+        <div class="footer">System Ready • ESP32-S3</div>
+    </div>
+
+    <script>
+        function submitConfig() {
+            var ssid = document.getElementById("ssid").value;
+            var pass = document.getElementById("password").value;
+            var name = document.getElementById("devname").value;
+
+            if(ssid === "") {
+                // 简单的震动反馈 (如果是安卓手机)
+                if(navigator.vibrate) navigator.vibrate(200);
+                alert("请填写 WiFi 名称");
+                return;
+            }
+
+            var btn = document.getElementById("submitBtn");
+            var btnText = document.getElementById("btnText");
+            var spinner = document.getElementById("loadingSpinner");
+
+            // 按钮进入加载状态
+            btn.disabled = true;
+            btnText.innerText = "正在保存...";
+            spinner.style.display = "inline-block";
+            
+            var data = { ssid: ssid, password: pass, dev_name: name };
+
+            fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(res => {
+                if(res.ok) {
+                    btnText.innerText = "保存成功";
+                    setTimeout(() => {
+                        alert("设置已保存，设备正在重启...");
+                    }, 100);
+                } else {
+                    throw new Error('Failed');
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btnText.innerText = "重试";
+                spinner.style.display = "none";
+                alert("发送失败，请检查连接");
+            });
+        }
+    </script>
+</body>
+</html>

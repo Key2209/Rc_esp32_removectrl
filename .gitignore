@@ -1,0 +1,17 @@
+# ESP-IDF编译输出
+build/
+sdkconfig
+sdkconfig.old
+*.bin
+*.elf
+*.map
+
+# 依赖和缓存
+.cache/
+managed_components/
+
+# 日志文件
+*.log
+
+# 系统文件
+.DS_Store
