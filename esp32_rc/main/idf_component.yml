@@ -20,3 +20,4 @@ dependencies:
   espressif/esp_lcd_ili9341: ^1.2.0
 
   espressif/mdns: ^1.9.1
+  

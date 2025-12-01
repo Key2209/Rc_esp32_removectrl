@@ -7,12 +7,13 @@
 #include "cJSON.h"
 #include "esp_log.h"
 #include "esp_event_base.h"
-
+#include <stdio.h>
 static char TAG[] = "UDP_TASK";
-
+char *devices_name;
 // 全局队列句柄
 QueueHandle_t robot_ctrl_queue = NULL;
-
+QueueHandle_t lvgl_rc_queue = NULL;
+SemaphoreHandle_t wifi_info_semaphore = NULL;
 /**
  * @brief 初始化 mDNS 服务
  * 手机可以通过 "esp32-robot.local" 找到设备
@@ -24,26 +25,30 @@ void start_mdns_service()
 
     // 设置主机名: my-robot.local
     // my_wifi_config.device_name
-    ESP_ERROR_CHECK(mdns_hostname_set("my-robot"));
 
+    // ESP_ERROR_CHECK(mdns_hostname_set("my-robot"));
+    ESP_ERROR_CHECK(mdns_hostname_set(my_wifi_config.device_name));
     // 设置实例名 (可选，用于服务发现)
     ESP_ERROR_CHECK(mdns_instance_name_set("ESP32 Robot Chassis"));
 
     // 添加服务: _udp 表示我们使用 UDP 协议, Port 3333
     ESP_ERROR_CHECK(mdns_service_add("ESP32-Robot", "_robot", "_udp", UDP_PORT, NULL, 0));
 
-    ESP_LOGI("MDNS", "mDNS started. You can ping 'my-robot.local'");
+    // ESP_LOGI("MDNS", "mDNS started. You can ping 'my-robot.local'");
+    ESP_LOGE("MDNS", "mDNS started. You can ping '%s.local'", my_wifi_config.device_name);
 }
 // 比较两个 sockaddr_in 是否相同 (IP 和 Port 都要一样)
 static bool is_same_client(struct sockaddr_in *a, struct sockaddr_in *b)
 {
+    // ESP_LOGE(TAG, "Comparing clients: %s:%d and %s:%d",
+    //          inet_ntoa(a->sin_addr), ntohs(a->sin_port),
+    //          inet_ntoa(b->sin_addr), ntohs(b->sin_port));
     return (a->sin_addr.s_addr == b->sin_addr.s_addr) &&
            (a->sin_port == b->sin_port);
 }
 void udp_server_task(void *pvParameters)
 {
 
-    robot_ctrl_queue = xQueueCreate(5, sizeof(robot_ctrl_t));
     char rx_buffer[256];
     struct sockaddr_in dest_addr;
 
@@ -91,8 +96,8 @@ void udp_server_task(void *pvParameters)
         int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
 
         uint32_t now = xTaskGetTickCount(); // 获取当前系统滴答
-        //ESP_LOGE("UDP", "正在运行");
-        // 2. 检查会话是否超时 (看门狗)
+        // ESP_LOGE("UDP", "正在运行");
+        //  2. 检查会话是否超时 (看门狗)
         if (g_session.state == SESSION_LOCKED)
         {
             uint32_t diff = (now - g_session.last_packet_tick) * portTICK_PERIOD_MS;
@@ -107,7 +112,7 @@ void udp_server_task(void *pvParameters)
         if (len > 0)
         {
             rx_buffer[len] = 0;
-            ESP_LOGI("UDP", "Recv: %s", rx_buffer);
+            // ESP_LOGI("UDP", "Recv: %s", rx_buffer);
 
             cJSON *root = cJSON_Parse(rx_buffer);
             if (root)
@@ -120,16 +125,26 @@ void udp_server_task(void *pvParameters)
                 // ============================
                 if (strcmp(cmd_str, "connect") == 0)
                 {
+                    ESP_LOGI("UDP", "Received connection request from %s:%d",
+                             inet_ntoa(source_addr.sin_addr), ntohs(source_addr.sin_port));
                     if (g_session.state == SESSION_IDLE)
                     {
                         g_session.state = SESSION_LOCKED;    // 状态变更为锁定
                         g_session.client_addr = source_addr; // 记下这个人的地址
                         g_session.last_packet_tick = now;    // 记录时间
 
+                        cJSON *device_item = cJSON_GetObjectItem(root, "device");
+                        char *device_str = device_item ? cJSON_GetStringValue(device_item) : "";
+                        snprintf(my_wifi_config.device_name, sizeof(my_wifi_config.device_name), "%s", device_str);
+
+                        ESP_LOGE("UDP", "Connected device: %s", my_wifi_config.device_name);
+                        // devices_name = cmd_item1 ? cJSON_GetStringValue(cmd_item1) : "";
+                        // ESP_LOGE("UDP", "Connected device: %s", devices_name);
                         ESP_LOGI("SESSION", "New client connected!");
 
                         // 发送回复 (ACK)，告诉手机连接成功
                         const char *reply = "{\"status\":\"ok\"}";
+
                         sendto(sock, reply, strlen(reply), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
                     }
                     else if (is_same_client(&source_addr, &g_session.client_addr))
@@ -137,13 +152,17 @@ void udp_server_task(void *pvParameters)
                         // 已经是这个人了，重置心跳
                         g_session.last_packet_tick = now;
                         const char *reply = "{\"status\":\"ok\"}";
+
                         sendto(sock, reply, strlen(reply), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
                     }
                     else
                     {
                         // 已经有别人连接了，拒绝!
                         ESP_LOGW("SESSION", "Rejecting connection from other IP");
-                        const char *reply = "{\"status\":\"busy\"}";
+
+                        // const char *reply = "{\"status\":\"busy\",\"device\":\"%s\"}";
+                        char reply[100];
+                        snprintf(reply, sizeof(reply), "{\"status\":\"busy\",\"device\":\"%s\"}", my_wifi_config.device_name);
                         sendto(sock, reply, strlen(reply), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
                     }
                 }
@@ -153,23 +172,80 @@ void udp_server_task(void *pvParameters)
                 // ============================
                 else if (strcmp(cmd_str, "ctrl") == 0)
                 {
-                    // 只有处于锁定状态，且 IP 匹配，才执行
-                    if (g_session.state == SESSION_LOCKED && is_same_client(&source_addr, &g_session.client_addr))
+                    // ESP_LOGE("UDP", "Received control command");
+                    //  char log_buf[256];
+                    //  snprintf(log_buf, sizeof(log_buf), "Received control command from %s:%d",
+                    //           inet_ntoa(source_addr.sin_addr), ntohs(source_addr.sin_port));
+                    //  ESP_LOGI("UDP", "%s", log_buf);
+
+                    // snprintf(log_buf, sizeof(log_buf), "g_session.state:%d,g_session.client_addr:%s:%d",
+                    //          g_session.state,
+                    //          inet_ntoa(g_session.client_addr.sin_addr),
+                    //          ntohs(g_session.client_addr.sin_port));
+                    // ESP_LOGI("UDP", "%s", log_buf);
+                    if (g_session.state == SESSION_LOCKED &&
+                        is_same_client(&source_addr, &g_session.client_addr))
                     {
-                        // 喂狗：更新最后通信时间
                         g_session.last_packet_tick = now;
 
-                        cJSON *t = cJSON_GetObjectItem(root, "t");
-                        cJSON *s = cJSON_GetObjectItem(root, "s");
+                        // 解析所有字段
+                        cJSON *x1 = cJSON_GetObjectItem(root, "x1");
+                        cJSON *y1 = cJSON_GetObjectItem(root, "y1");
 
-                        if (t && s)
+                        cJSON *x2 = cJSON_GetObjectItem(root, "x2");
+                        cJSON *y2 = cJSON_GetObjectItem(root, "y2");
+
+                        cJSON *sc_h1 = cJSON_GetObjectItem(root, "sc_h1");
+                        cJSON *sc_v1 = cJSON_GetObjectItem(root, "sc_v1");
+
+                        // 按钮组 1
+                        cJSON *button_group1 = cJSON_GetObjectItem(root, "btn_g1");
+
+                        UiDataStruct ctrl_data = {0};
+
+                        // joystick1
+                        if (x1 && y1)
                         {
-                            robot_ctrl_t ctrl_data;
-                            ctrl_data.x = t->valueint;
-                            ctrl_data.y = s->valueint;
-                            // 发送到电机任务
-                            xQueueOverwrite(robot_ctrl_queue, &ctrl_data);
+                            ctrl_data.joystick1.x = x1->valuedouble;
+                            ctrl_data.joystick1.y = y1->valuedouble;
                         }
+
+                        // joystick2
+                        if (x2 && y2)
+                        {
+                            ctrl_data.joystick2.x = x2->valuedouble;
+                            ctrl_data.joystick2.y = y2->valuedouble;
+                        }
+
+                        // scroller
+                        if (sc_h1)
+                            ctrl_data.scroller_horiz1 = sc_h1->valuedouble;
+                        if (sc_v1)
+                            ctrl_data.scroller_vertical1 = sc_v1->valuedouble;
+
+                        // button group 1
+                        if (button_group1 && cJSON_IsArray(button_group1))
+                        {
+                            for (int i = 0; i < 10; i++)
+                            {
+                                cJSON *btn = cJSON_GetArrayItem(button_group1, i);
+                                ctrl_data.button_group1[i] = btn ? btn->valueint : 0;
+                            }
+                        }
+
+                        // debug log
+                        // ESP_LOGI("UDP", "Joystick1: (%.2f, %.2f)", ctrl_data.joystick1.x, ctrl_data.joystick1.y);
+                        // ESP_LOGI("UDP", "Joystick2: (%.2f, %.2f)", ctrl_data.joystick2.x, ctrl_data.joystick2.y);
+                        // ESP_LOGI("UDP", "Scroller: (%.2f, %.2f)", ctrl_data.scroller_horiz1, ctrl_data.scroller_vertical1);
+
+                        // ESP_LOGI("UDP", "Buttons:");
+                        // for (int i = 0; i < 10; i++)
+                        //     ESP_LOGI("UDP", "  [%d] = %d", i, ctrl_data.button_group1[i]);
+
+                        // 发送到电机任务
+                        xQueueOverwrite(robot_ctrl_queue, &ctrl_data);
+                        // 发送到 LVGL 任务
+                        xQueueOverwrite(lvgl_rc_queue, &ctrl_data);
                     }
                     else
                     {
@@ -187,9 +263,9 @@ void udp_server_task(void *pvParameters)
                     {
                         ESP_LOGI("SESSION", "Client requested disconnect.");
                         g_session.state = SESSION_IDLE;
-                        // 电机应该也要停下来
-                        robot_ctrl_t stop_data = {0, 0};
+                        UiDataStruct stop_data = {0};
                         xQueueOverwrite(robot_ctrl_queue, &stop_data);
+                        xQueueOverwrite(lvgl_rc_queue, &stop_data);
                     }
                 }
 
@@ -202,12 +278,16 @@ void udp_server_task(void *pvParameters)
 
 void wifi_udp_init()
 {
+    robot_ctrl_queue = xQueueCreate(1, sizeof(UiDataStruct));
+    lvgl_rc_queue = xQueueCreate(1, sizeof(UiDataStruct));
+    wifi_info_semaphore = xSemaphoreCreateBinary();
 
     start_mdns_service();
 
-    xTaskCreate(udp_server_task, "udp_task", 4096, NULL, 5, NULL);
+    uart_task_init();
+    xTaskCreate(udp_server_task, "udp_task", 4096 * 2, NULL, 5, NULL);
 }
-
+char wifi_info_buf[256];
 static void wifi_sta_event_handler(void *arg, esp_event_base_t event_base,
                                    int32_t event_id, void *event_data)
 {
@@ -242,11 +322,20 @@ static void wifi_sta_event_handler(void *arg, esp_event_base_t event_base,
                 ESP_LOGI(TAG, "IP地址: " IPSTR, IP2STR(&ip_info.ip));
                 ESP_LOGI(TAG, "子网掩码: " IPSTR, IP2STR(&ip_info.netmask));
                 ESP_LOGI(TAG, "网关: " IPSTR, IP2STR(&ip_info.gw));
+
+                // char wifi_info_buf[256];
+                snprintf(wifi_info_buf, sizeof(wifi_info_buf),
+                         "WIFI INFO:\nSSID: %s\nIP: " IPSTR "\nGateway: " IPSTR,
+                         my_wifi_config.ssid,
+                         IP2STR(&ip_info.ip),
+                         IP2STR(&ip_info.gw));
+
                 // 启动网络服务
                 ESP_LOGI(TAG, "网络服务启动......");
-                
-                wifi_udp_init();
 
+                wifi_udp_init();
+                BaseType_t xHigherPriorityTaskWoken = pdFALSE; // 用于通知是否需要切换任务
+                xSemaphoreGiveFromISR(wifi_info_semaphore, &xHigherPriorityTaskWoken);
                 ESP_LOGI(TAG, "网络服务启动完成");
             }
         }

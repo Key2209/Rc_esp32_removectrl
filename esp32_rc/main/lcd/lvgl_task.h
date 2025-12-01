@@ -7,7 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-
+#include "udp_task.h"
 
 
 void ui_create_reset_screen_arc(void);
@@ -23,6 +23,6 @@ void ui_update_reset_progress_arc(int progress);
 void example_lvgl_port_task(void *arg);
 void button_init();
 
-
-
+void ui_DataScreen_screen_init(void);
+void ui_update_data_screen(UiDataStruct data) ;
 #endif

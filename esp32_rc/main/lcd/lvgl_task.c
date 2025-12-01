@@ -15,7 +15,7 @@
 #include "ui/screens/ui_mainScr.h"
 #include "ui/screens/ui_wifiINFOScreen.h"
 #include "nvs_manager.h"
-
+#include "udp_task.h"
 char *TAG = "LVGL_TASK";
 
 // lvgl任务
@@ -52,22 +52,21 @@ static void button_event_cb(void *arg, void *data)
     if (BUTTON_LONG_PRESS_START == event)
     {
         // 切换进度展示屏幕
-        lv_async_call(ui_load_reset_screen,NULL);
+        lv_async_call(ui_load_reset_screen, NULL);
         g_operation_executed = false; // 重置标志
     }
 
     if (BUTTON_LONG_PRESS_HOLD == event)
     {
 
-        //ESP_LOGI(TAG, "\tTICKS[%" PRIu32 "]", iot_button_get_ticks_time(arg));
+        // ESP_LOGI(TAG, "\tTICKS[%" PRIu32 "]", iot_button_get_ticks_time(arg));
         uint32_t time = iot_button_get_ticks_time(arg);
         // 在lcd中展示秒数
-        uint8_t lcd_time = (time-BUTTON_LONG_PRESS_TIME) * 100 / BUTTON_LONG_PRESS_TARGET_TIME;
+        uint8_t lcd_time = (time - BUTTON_LONG_PRESS_TIME) * 100 / BUTTON_LONG_PRESS_TARGET_TIME;
         // lv_async_call(ui_update_wrapper_async,(void *)(intptr_t)lcd_time);
         if (xQueueSend(ReSetUiQueue, &lcd_time, portMAX_DELAY) == pdPASS)
         {
         }
-
 
         if (time >= BUTTON_LONG_PRESS_TARGET_TIME)
         {
@@ -79,7 +78,6 @@ static void button_event_cb(void *arg, void *data)
 
             // 取消操作
             g_operation_executed = false;
-
         }
     }
     if (event == BUTTON_LONG_PRESS_UP)
@@ -101,7 +99,7 @@ static void button_event_cb(void *arg, void *data)
     }
 }
 
-lv_obj_t *LVGL_Scr_List[4];
+lv_obj_t *LVGL_Scr_List[3];
 void button_init()
 {
     // create gpio button
@@ -121,8 +119,6 @@ void button_init()
     {
         ESP_LOGE(TAG, "Button create failed");
     }
-
-
 
     iot_button_register_cb(gpio_btn, BUTTON_PRESS_DOWN, NULL, button_event_cb, NULL);
     iot_button_register_cb(gpio_btn, BUTTON_PRESS_UP, NULL, button_event_cb, NULL);
@@ -163,6 +159,7 @@ static void example_lvgl_unlock(void)
     xSemaphoreGive(lvgl_mux);
 }
 
+UiDataStruct lvgl_rc_value = {0};
 void example_lvgl_port_task(void *arg)
 {
     ESP_LOGI(TAG, "Starting LVGL task");
@@ -176,20 +173,39 @@ void example_lvgl_port_task(void *arg)
     LVGL_Scr_List[0] = ui_mainScr;
     LVGL_Scr_List[1] = ui_DataScreen;
     LVGL_Scr_List[2] = ui_wifiINFOScreen;
-    LVGL_Scr_List[3] = ui_Screen1;
+    //LVGL_Scr_List[3] = ui_Screen1;
 
     ReSetUiQueue = xQueueCreate(1, sizeof(int));
     uint32_t task_delay_ms = EXAMPLE_LVGL_TASK_MAX_DELAY_MS;
 
-    uint8_t ReSetValue=0;
+    uint8_t ReSetValue = 0;
+
     while (1)
     {
-
-        if (xQueueReceive(ReSetUiQueue, &ReSetValue, 0) == pdPASS)
+        if (wifi_info_semaphore != NULL)
         {
-            //ui_update_reset_progress_custom(ReSetValue);
-            ui_update_reset_progress_arc(ReSetValue);
-            ESP_LOGE(TAG,"复位进度:%d",ReSetValue);
+            if (xSemaphoreTake(wifi_info_semaphore, 0) == pdTRUE)
+            {
+                setWifiInfoText(wifi_info_buf);
+            }
+        }
+
+        if (ReSetUiQueue != NULL)
+        {
+            if (xQueueReceive(ReSetUiQueue, &ReSetValue, 0) == pdPASS)
+            {
+                // ui_update_reset_progress_custom(ReSetValue);
+                ui_update_reset_progress_arc(ReSetValue);
+                ESP_LOGE(TAG, "复位进度:%d", ReSetValue);
+            }
+        }
+
+        if (lvgl_rc_queue != NULL)
+        {
+            if (xQueueReceive(lvgl_rc_queue, &lvgl_rc_value, 0) == pdPASS)
+            {
+                ui_update_data_screen(lvgl_rc_value);
+            }
         }
 
         // Lock the mutex due to the LVGL APIs are not thread-safe

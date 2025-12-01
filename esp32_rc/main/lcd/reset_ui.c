@@ -168,229 +168,390 @@ void ui_update_reset_progress_arc(int progress) {
     }
 }
 
+#include "udp_task.h"
+// This file was customized for LVGL 8.3 with SquareLine style
+// Variables and function names kept exactly the same as your project
 
 
+#include <stdio.h>
 
+lv_obj_t * ui_DataScreen = NULL;
+lv_obj_t * uic_DataScreen = NULL;
 
+// // labels
+static lv_obj_t * lbl_title;
 
+// joystick1
+static lv_obj_t * lbl_j1_x;
+static lv_obj_t * lbl_j1_y;
+static lv_obj_t * lbl_j1_l;
+static lv_obj_t * lbl_j1_a;
 
+// joystick2
+static lv_obj_t * lbl_j2_x;
+static lv_obj_t * lbl_j2_y;
+static lv_obj_t * lbl_j2_l;
+static lv_obj_t * lbl_j2_a;
 
+// scrollers
+static lv_obj_t * lbl_h1;
+static lv_obj_t * lbl_v1;
 
+// buttons
+static lv_obj_t * lbl_b1[10];
+static lv_obj_t * lbl_b2[10];
 
+static lv_obj_t * add_label(lv_obj_t *parent, int x, int y, const char *txt)
+{
+    // lv_obj_t *lbl = lv_label_create(parent);
+    // lv_obj_set_pos(lbl, x, y);
+    // lv_label_set_text(lbl, txt);
+    // lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+    // return lbl;
 
+    lv_obj_t *lbl = lv_label_create(parent);                  // 创建 label
+    lv_obj_set_pos(lbl, x, y);                                // 设置位置
+    lv_label_set_text(lbl, txt);                              // 设置文本
+    //lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0); // 白色字体
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);  // 14号字体
+    return lbl;                                               // 返回对象
+}
 
-// #include "lvgl.h"
-// #include <stdlib.h> // 用于 rand()
-// #include <stdint.h> // 用于 intptr_t
-
-// // --- 配置参数 ---
-// #define SCREEN_SIZE 240
-// #define PARTICLE_COUNT 10
-// #define PARTICLE_SPEED 20     // 粒子定时器间隔 (ms)
-// #define MAX_PROGRESS_SIZE 180 // 中心圆最大直径
-
-// // --- 全局对象指针 ---
-// static lv_obj_t *reset_screen;
-// static lv_obj_t *progress_circle;
-// static lv_obj_t *header_label;
-// static lv_obj_t *status_label;
-// static lv_obj_t *particles[PARTICLE_COUNT]; // 粒子对象数组
-// static lv_timer_t *particle_timer;
-
-// // ------------------------------------
-// // PART 1: 粒子效果逻辑 (Particle System)
-// // ------------------------------------
-
-// /**
-//  * @brief 粒子定时器回调函数
-//  * 用于模拟粒子缓慢向上浮动的效果
-//  */
-// static void particle_anim_timer_cb(lv_timer_t *timer)
+// void ui_DataScreen_screen_init(void)
 // {
-//     if (reset_screen != lv_disp_get_scr_act(NULL))
-//     {
-//         // 如果当前屏幕不是 reset_screen，则停止粒子动画
-//         return;
+//     ui_DataScreen = lv_obj_create(NULL);
+//     lv_obj_clear_flag(ui_DataScreen, LV_OBJ_FLAG_SCROLLABLE);
+
+//     uic_DataScreen = ui_DataScreen;  // SquareLine style
+
+//     // Title
+//     lbl_title = add_label(ui_DataScreen, 5, 5, "RC DATA");
+
+//     // --- Joystick 1 ---
+//     add_label(ui_DataScreen, 5, 25, "J1");
+//     lbl_j1_x = add_label(ui_DataScreen, 30, 25, "x:0");
+//     lbl_j1_y = add_label(ui_DataScreen, 100, 25, "y:0");
+//     lbl_j1_l = add_label(ui_DataScreen, 170, 25, "L:0");
+//     lbl_j1_a = add_label(ui_DataScreen, 240, 25, "A:0");
+
+//     // --- Joystick 2 ---
+//     add_label(ui_DataScreen, 5, 45, "J2");
+//     lbl_j2_x = add_label(ui_DataScreen, 30, 45, "x:0");
+//     lbl_j2_y = add_label(ui_DataScreen, 100, 45, "y:0");
+//     lbl_j2_l = add_label(ui_DataScreen, 170, 45, "L:0");
+//     lbl_j2_a = add_label(ui_DataScreen, 240, 45, "A:0");
+
+//     // --- Scrollers ---
+//     add_label(ui_DataScreen, 5, 70, "H1:");
+//     lbl_h1 = add_label(ui_DataScreen, 40, 70, "0");
+
+//     add_label(ui_DataScreen, 120, 70, "V1:");
+//     lbl_v1 = add_label(ui_DataScreen, 155, 70, "0");
+
+//     // --- Buttons group 1 ---
+//     add_label(ui_DataScreen, 5, 95, "B1:");
+//     int x = 35;
+//     for (int i = 0; i < 10; i++) {
+//         char buf[8];
+//         sprintf(buf, "%d:0", i);
+//         lbl_b1[i] = add_label(ui_DataScreen, x, 95, buf);
+//         x += 25;
 //     }
 
-//     for (int i = 0; i < PARTICLE_COUNT; i++)
-//     {
-//         lv_obj_t *p = particles[i];
-//         if (!p)
-//             continue;
-
-//         // 1. 向上移动 (Y坐标减小)
-//         lv_coord_t y = lv_obj_get_y(p) - 1;
-//         lv_obj_set_y(p, y);
-
-//         // 2. 达到顶部后重置到底部随机位置，并随机重置大小
-//         if (y < -10)
-//         {
-//             lv_obj_set_y(p, SCREEN_SIZE + rand() % 20);         // 随机重置到屏幕外底部
-//             lv_obj_set_x(p, rand() % SCREEN_SIZE);              // 随机重置X坐标
-//             lv_obj_set_size(p, 3 + rand() % 3, 3 + rand() % 3); // 随机大小 (3-5px)
-//         }
-
-//         // 3. 随机透明度变化，模拟闪烁/浮动
-//         // 靠近顶部时透明度降低
-//         int opa_val = LV_OPA_30 + (rand() % 40);
-//         lv_obj_set_style_opa(p, opa_val, 0);
-//     }
-// }
-
-// /**
-//  * @brief 创建并初始化所有粒子对象
-//  * @param parent 粒子所属的父对象 (通常是屏幕)
-//  */
-// static void create_particles(lv_obj_t *parent)
-// {
-//     for (int i = 0; i < PARTICLE_COUNT; i++)
-//     {
-//         lv_obj_t *p = lv_obj_create(parent);
-//         particles[i] = p;
-
-//         // 粒子基础样式
-//         lv_obj_remove_style_all(p);
-//         lv_obj_set_style_bg_color(p, lv_color_white(), 0);
-//         lv_obj_set_style_radius(p, LV_RADIUS_CIRCLE, 0); // 确保是圆点
-//         lv_obj_set_style_border_width(p, 0, 0);
-
-//         // 随机初始位置和大小
-//         lv_obj_set_size(p, 3 + rand() % 3, 3 + rand() % 3);
-//         lv_obj_set_x(p, rand() % SCREEN_SIZE);
-//         lv_obj_set_y(p, rand() % SCREEN_SIZE);
-//         lv_obj_set_style_opa(p, LV_OPA_30 + (rand() % 40), 0);
-//     }
-
-//     // 启动粒子动画定时器
-//     particle_timer = lv_timer_create(particle_anim_timer_cb, PARTICLE_SPEED, NULL);
-// }
-
-// // ------------------------------------
-// // PART 2: UI 主体构建
-// // ------------------------------------
-
-// /**
-//  * @brief 创建 "粒子涌动" 重置屏幕
-//  */
-// void ui_create_reset_screen_custom(void)
-// {
-//     // 1. 创建新屏幕对象
-//     reset_screen = lv_obj_create(NULL);
-//     lv_obj_remove_style_all(reset_screen);
-//     lv_obj_set_style_bg_color(reset_screen, lv_color_hex(0x050510), 0); // 深蓝黑背景
-//     lv_obj_set_style_bg_opa(reset_screen, LV_OPA_COVER, 0);
-
-//     // 2. 创建粒子效果 (在屏幕上浮动)
-//     create_particles(reset_screen);
-
-//     // 3. 顶部标题
-//     header_label = lv_label_create(reset_screen);
-//     lv_label_set_text(header_label, "CONFIG WIPEOUT");
-//     lv_obj_set_style_text_color(header_label, lv_color_make(0x6A, 0xC8, 0xED), 0); // 科技感蓝色
-//     lv_obj_set_style_text_font(header_label, &lv_font_montserrat_14, 0);
-//     lv_obj_align(header_label, LV_ALIGN_TOP_MID, 0, 15);
-
-//     // 4. 中央进度圆 (初始隐藏/很小)
-//     progress_circle = lv_obj_create(reset_screen);
-//     lv_obj_remove_style_all(progress_circle);
-//     lv_obj_set_size(progress_circle, 0, 0); // 初始为 0
-//     lv_obj_center(progress_circle);
-
-//     // 设置为圆角 (模拟圆形)
-//     lv_obj_set_style_radius(progress_circle, LV_RADIUS_CIRCLE, 0);
-//     // 渐变色背景
-//     lv_obj_set_style_bg_color(progress_circle, lv_palette_main(LV_PALETTE_YELLOW), 0);
-//     lv_obj_set_style_bg_grad_color(progress_circle, lv_palette_main(LV_PALETTE_RED), 0); // 渐变到红色
-//     lv_obj_set_style_bg_grad_dir(progress_circle, LV_GRAD_DIR_HOR, 0);
-//     lv_obj_set_style_bg_opa(progress_circle, LV_OPA_60, 0); // 半透明，有发光感
-
-//     // 5. 中央状态标签 (置于进度圆上方)
-//     status_label = lv_label_create(progress_circle); // 以 progress_circle 为父对象，便于居中
-//     lv_label_set_text(status_label, "PRESS TO INITIATE");
-//     lv_obj_center(status_label);
-//     lv_obj_set_style_text_align(status_label, LV_TEXT_ALIGN_CENTER, 0);
-//     lv_obj_set_style_text_color(status_label, lv_color_white(), 0);
-//     lv_obj_set_style_text_font(status_label, &lv_font_montserrat_14, 0);
-// }
-
-// // ------------------------------------
-// // PART 3: 进度更新 (跨线程安全)
-// // ------------------------------------
-
-// /**
-//  * @brief 更新进度条状态 (在 LVGL 线程中执行)
-//  * @param progress 0 - 100 的整数
-//  */
-// void ui_update_reset_progress_custom(uint8_t progress)
-// {
-//     if (!progress_circle)
-//         return;
-
-//     if (progress < 0)
-//         progress = 0;
-//     if (progress > 100)
-//         progress = 100;
-
-//     // 1. 核心逻辑：根据进度计算圆形大小
-//     // 从 0 增长到最大 MAX_PROGRESS_SIZE
-//     uint8_t size = (MAX_PROGRESS_SIZE * progress) / 100;
-//     lv_obj_set_size(progress_circle, size, size);
-//     lv_obj_center(progress_circle); // 保持居中
-
-//     // 2. 状态和颜色更新
-//     if (progress >= 100)
-//     {
-//         // --- 状态：完成 (爆破效果) ---
-//         // 瞬间将圆形放大到超过屏幕
-//         lv_obj_set_size(progress_circle, SCREEN_SIZE + 50, SCREEN_SIZE + 50);
-//         lv_obj_center(progress_circle);
-
-//         // 颜色变为纯红
-//         lv_obj_set_style_bg_color(progress_circle, lv_palette_main(LV_PALETTE_RED), 0);
-//         lv_obj_set_style_bg_grad_color(progress_circle, lv_palette_main(LV_PALETTE_RED), 0);
-//         lv_obj_set_style_bg_opa(progress_circle, LV_OPA_80, 0); // 提高透明度
-
-//         lv_label_set_text(status_label, "ERASING COMPLETE!");
-//         lv_obj_set_style_text_color(status_label, lv_color_white(), 0);
-//     }
-//     else
-//     {
-//         // --- 状态：进行中 ---
-
-//         // 透明度根据进度变化 (0% 30% -> 99% 70%)，增强动感
-//         lv_obj_set_style_bg_opa(progress_circle, LV_OPA_30 + (LV_OPA_70 * progress / 100), 0);
-
-//         // 改变文字
-//         if (progress > 0)
-//         {
-//             lv_label_set_text_fmt(status_label, "CONFIRMING...\n%d%%", progress);
-//             lv_obj_set_style_text_color(status_label, lv_color_white(), 0);
-//         }
-//         else
-//         {
-//             lv_label_set_text(status_label, "PRESS TO INITIATE");
-//             lv_obj_set_style_text_color(status_label, lv_color_make(0x6A, 0xC8, 0xED), 0);
-//         }
+//     // --- Buttons group 2 ---
+//     add_label(ui_DataScreen, 5, 115, "B2:");
+//     x = 35;
+//     for (int i = 0; i < 10; i++) {
+//         char buf[8];
+//         sprintf(buf, "%d:0", i);
+//         lbl_b2[i] = add_label(ui_DataScreen, x, 115, buf);
+//         x += 25;
 //     }
 // }
 
-// /**
-//  * @brief 切换到新的重置屏幕
-//  */
-// void ui_load_reset_screen(void)
+// void ui_DataScreen_screen_destroy(void)
 // {
-//     if (reset_screen)
-//     {
-//         lv_disp_load_scr(reset_screen);
+//     if (ui_DataScreen)
+//         lv_obj_del(ui_DataScreen);
+
+//     ui_DataScreen = NULL;
+//     uic_DataScreen = NULL;
+
+//     // labels auto cleaned by lv_obj_del
+// }
+
+
+// // ======================
+// //  Update function
+// // ======================
+// void ui_update_data_screen(UiDataStruct data)
+// {
+//     char buf[32];
+
+//     // J1
+//     sprintf(buf, "x:%.2f", data.joystick1.x);
+//     lv_label_set_text(lbl_j1_x, buf);
+
+//     sprintf(buf, "y:%.2f", data.joystick1.y);
+//     lv_label_set_text(lbl_j1_y, buf);
+
+//     sprintf(buf, "L:%.2f", data.joystick1.long_value);
+//     lv_label_set_text(lbl_j1_l, buf);
+
+//     sprintf(buf, "A:%d", data.joystick1.angle);
+//     lv_label_set_text(lbl_j1_a, buf);
+
+//     // J2
+//     sprintf(buf, "x:%.2f", data.joystick2.x);
+//     lv_label_set_text(lbl_j2_x, buf);
+
+//     sprintf(buf, "y:%.2f", data.joystick2.y);
+//     lv_label_set_text(lbl_j2_y, buf);
+
+//     sprintf(buf, "L:%.2f", data.joystick2.long_value);
+//     lv_label_set_text(lbl_j2_l, buf);
+
+//     sprintf(buf, "A:%d", data.joystick2.angle);
+//     lv_label_set_text(lbl_j2_a, buf);
+
+//     // Scrollers
+//     sprintf(buf, "%.2f", data.scroller_horiz1);
+//     lv_label_set_text(lbl_h1, buf);
+
+//     sprintf(buf, "%.2f", data.scroller_vertical1);
+//     lv_label_set_text(lbl_v1, buf);
+
+//     // Buttons
+//     for (int i = 0; i < 10; i++) {
+//         sprintf(buf, "%d:%d", i, data.button_group1[i]);
+//         lv_label_set_text(lbl_b1[i], buf);
+
+//         sprintf(buf, "%d:%d", i, data.button_group2[i]);
+//         lv_label_set_text(lbl_b2[i], buf);
 //     }
 // }
 
-// /**
-//  * @brief LVGL 线程的包装函数，用于 lv_async_call
-//  */
-// void ui_update_wrapper_async1(void *arg)
+
+
+
+
+
+// void ui_DataScreen_screen_init(void)
 // {
-//     int progress = (intptr_t)arg;
-//     ui_update_reset_progress_custom(progress);
+//     ui_DataScreen = lv_obj_create(NULL);
+//     lv_obj_clear_flag(ui_DataScreen, LV_OBJ_FLAG_SCROLLABLE);
+
+//     // 背景颜色
+//     lv_obj_set_style_bg_color(ui_DataScreen, lv_color_hex(0x202020), 0);
+//     lv_obj_set_style_text_color(ui_DataScreen, lv_color_hex(0xffffff), 0);
+
+//     // 字体统一
+//     const lv_font_t *font = &lv_font_montserrat_14;
+
+//     // ====== 标题 ======
+//     lbl_title = lv_label_create(ui_DataScreen);
+//     lv_label_set_text(lbl_title, "RC MONITOR");
+//     lv_obj_set_style_text_font(lbl_title, &lv_font_montserrat_14, 0);
+//     lv_obj_align(lbl_title, LV_ALIGN_TOP_MID, 0, 5);
+
+
+//     // ====== J1 BOX ======
+//     lv_obj_t *j1_box = lv_obj_create(ui_DataScreen);
+//     lv_obj_set_size(j1_box, 220, 55);
+//     lv_obj_align(j1_box, LV_ALIGN_TOP_MID, 0, 35);
+//     lv_obj_set_style_bg_color(j1_box, lv_color_hex(0x303030), 0);
+//     lv_obj_set_style_radius(j1_box, 10, 0);
+//     lv_obj_set_style_pad_all(j1_box, 6, 0);
+
+//     add_label(j1_box, 5, 0, "J1");
+
+//     lbl_j1_x = add_label(j1_box, 40, 0, "X:0");
+//     lbl_j1_y = add_label(j1_box, 130, 0, "Y:0");
+
+//     lbl_j1_l = add_label(j1_box, 40, 25, "L:0");
+//     lbl_j1_a = add_label(j1_box, 130, 25, "A:0");
+
+
+//     // ====== J2 BOX ======
+//     lv_obj_t *j2_box = lv_obj_create(ui_DataScreen);
+//     lv_obj_set_size(j2_box, 220, 55);
+//     lv_obj_align(j2_box, LV_ALIGN_TOP_MID, 0, 95);
+//     lv_obj_set_style_bg_color(j2_box, lv_color_hex(0x303030), 0);
+//     lv_obj_set_style_radius(j2_box, 10, 0);
+//     lv_obj_set_style_pad_all(j2_box, 6, 0);
+
+//     add_label(j2_box, 5, 0, "J2");
+
+//     lbl_j2_x = add_label(j2_box, 40, 0, "X:0");
+//     lbl_j2_y = add_label(j2_box, 130, 0, "Y:0");
+
+//     lbl_j2_l = add_label(j2_box, 40, 25, "L:0");
+//     lbl_j2_a = add_label(j2_box, 130, 25, "A:0");
+
+
+//     // ====== 滚轮 H / V ======
+//     lv_obj_t *scroll_box = lv_obj_create(ui_DataScreen);
+//     lv_obj_set_size(scroll_box, 220, 40);
+//     lv_obj_align(scroll_box, LV_ALIGN_TOP_MID, 0, 155);
+//     lv_obj_set_style_bg_color(scroll_box, lv_color_hex(0x303030), 0);
+//     lv_obj_set_style_radius(scroll_box, 10, 0);
+//     lv_obj_set_style_pad_all(scroll_box, 6, 0);
+
+//     add_label(scroll_box, 5, 5, "H:");
+//     lbl_h1 = add_label(scroll_box, 35, 5, "0");
+
+//     add_label(scroll_box, 120, 5, "V:");
+//     lbl_v1 = add_label(scroll_box, 150, 5, "0");
+
+
+//     // ====== 按钮组 ======
+//     lv_obj_t *btn_box = lv_obj_create(ui_DataScreen);
+//     lv_obj_set_size(btn_box, 220, 55);
+//     lv_obj_align(btn_box, LV_ALIGN_BOTTOM_MID, 0, -5);
+//     lv_obj_set_style_bg_color(btn_box, lv_color_hex(0x303030), 0);
+//     lv_obj_set_style_radius(btn_box, 10, 0);
+//     lv_obj_set_style_pad_all(btn_box, 5, 0);
+
+//     add_label(btn_box, 5, 0, "B1:");
+//     for (int i = 0; i < 10; i++) {
+//         lbl_b1[i] = add_label(btn_box, 35 + i * 18, 0, "0");
+//     }
+
+//     add_label(btn_box, 5, 25, "B2:");
+//     for (int i = 0; i < 10; i++) {
+//         lbl_b2[i] = add_label(btn_box, 35 + i * 18, 25, "0");
+//     }
 // }
+
+
+void ui_DataScreen_screen_init(void)
+{
+    ui_DataScreen = lv_obj_create(NULL);
+    lv_obj_clear_flag(ui_DataScreen, LV_OBJ_FLAG_SCROLLABLE);
+
+    // 背景深灰
+    //lv_obj_set_style_bg_color(ui_DataScreen, lv_color_hex(0x181818), 0);
+    //lv_obj_set_style_text_color(ui_DataScreen, lv_color_hex(0xffffff), 0);
+
+    //const lv_color_t box_color = lv_color_hex(0x000025);
+    //const lv_font_t *font14 = &lv_font_montserrat_14;
+
+    // ====== Title ======
+    lbl_title = lv_label_create(ui_DataScreen);
+    lv_label_set_text(lbl_title, "RC DATA");
+    lv_obj_set_style_text_font(lbl_title, &lv_font_montserrat_14, 0); // 小一点更紧凑
+    lv_obj_align(lbl_title, LV_ALIGN_TOP_MID, 0, 4);
+
+
+    // ========= J1 =========
+    lv_obj_t *j1 = lv_obj_create(ui_DataScreen);
+    lv_obj_set_size(j1, 220, 48);
+    lv_obj_align(j1, LV_ALIGN_TOP_MID, 0, 28);
+    //lv_obj_set_style_bg_color(j1, box_color, 0);
+    lv_obj_set_style_radius(j1, 6, 0);
+    lv_obj_set_style_pad_all(j1, 4, 0);
+
+    add_label(j1, 2, 0, "J1");
+
+    lbl_j1_x = add_label(j1, 32, 0, "X:0");
+    lbl_j1_y = add_label(j1, 110, 0, "Y:0");
+    lbl_j1_l = add_label(j1, 32, 20, "L:0");
+    lbl_j1_a = add_label(j1, 110, 20, "A:0");
+
+
+    // ========= J2 =========
+    lv_obj_t *j2 = lv_obj_create(ui_DataScreen);
+    lv_obj_set_size(j2, 220, 48);
+    lv_obj_align(j2, LV_ALIGN_TOP_MID, 0, 82);
+    //lv_obj_set_style_bg_color(j2, box_color, 0);
+    lv_obj_set_style_radius(j2, 6, 0);
+    lv_obj_set_style_pad_all(j2, 4, 0);
+
+    add_label(j2, 2, 0, "J2");
+
+    lbl_j2_x = add_label(j2, 32, 0, "X:0");
+    lbl_j2_y = add_label(j2, 110, 0, "Y:0");
+    lbl_j2_l = add_label(j2, 32, 20, "L:0");
+    lbl_j2_a = add_label(j2, 110, 20, "A:0");
+
+
+    // ========= H / V Scrollers =========
+    lv_obj_t *scroll = lv_obj_create(ui_DataScreen);
+    lv_obj_set_size(scroll, 220, 35);
+    lv_obj_align(scroll, LV_ALIGN_TOP_MID, 0, 136);
+    //lv_obj_set_style_bg_color(scroll, box_color, 0);
+    lv_obj_set_style_radius(scroll, 6, 0);
+    lv_obj_set_style_pad_all(scroll, 4, 0);
+
+    add_label(scroll, 5, 5, "H:");
+    lbl_h1 = add_label(scroll, 35, 5, "0");
+
+    add_label(scroll, 120, 5, "V:");
+    lbl_v1 = add_label(scroll, 150, 5, "0");
+
+
+    // ========= Buttons =========
+    lv_obj_t *btn_box = lv_obj_create(ui_DataScreen);
+    lv_obj_set_size(btn_box, 220, 63);
+    lv_obj_align(btn_box, LV_ALIGN_BOTTOM_MID, 0, -5);
+    //lv_obj_set_style_bg_color(btn_box, box_color, 0);
+    lv_obj_set_style_radius(btn_box, 6, 0);
+    lv_obj_set_style_pad_all(btn_box, 4, 0);
+
+    add_label(btn_box, 5, 0, "B1:");
+    for (int i = 0; i < 10; i++) {
+        lbl_b1[i] = add_label(btn_box, 35 + i * 17, 0, "0");
+    }
+
+    add_label(btn_box, 5, 28, "B2:");
+    for (int i = 0; i < 10; i++) {
+        lbl_b2[i] = add_label(btn_box, 35 + i * 17, 28, "0");
+    }
+}
+
+void ui_update_data_screen(UiDataStruct data)
+{
+    char buf[32];
+
+    // J1
+    sprintf(buf, "x:%.2f", data.joystick1.x);
+    lv_label_set_text(lbl_j1_x, buf);
+
+    sprintf(buf, "y:%.2f", data.joystick1.y);
+    lv_label_set_text(lbl_j1_y, buf);
+
+    sprintf(buf, "L:%.2f", data.joystick1.long_value);
+    lv_label_set_text(lbl_j1_l, buf);
+
+    sprintf(buf, "A:%d", data.joystick1.angle);
+    lv_label_set_text(lbl_j1_a, buf);
+
+    // J2
+    sprintf(buf, "x:%.2f", data.joystick2.x);
+    lv_label_set_text(lbl_j2_x, buf);
+
+    sprintf(buf, "y:%.2f", data.joystick2.y);
+    lv_label_set_text(lbl_j2_y, buf);
+
+    sprintf(buf, "L:%.2f", data.joystick2.long_value);
+    lv_label_set_text(lbl_j2_l, buf);
+
+    sprintf(buf, "A:%d", data.joystick2.angle);
+    lv_label_set_text(lbl_j2_a, buf);
+
+    // Scrollers
+    sprintf(buf, "%.2f", data.scroller_horiz1);
+    lv_label_set_text(lbl_h1, buf);
+
+    sprintf(buf, "%.2f", data.scroller_vertical1);
+    lv_label_set_text(lbl_v1, buf);
+
+    // Buttons
+    for (int i = 0; i < 10; i++) {
+        sprintf(buf, "%d",data.button_group1[i]);
+        lv_label_set_text(lbl_b1[i], buf);
+
+        sprintf(buf, "%d",data.button_group2[i]);
+        lv_label_set_text(lbl_b2[i], buf);
+    }
+}

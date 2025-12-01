@@ -18,8 +18,9 @@
 #include "ap_connect.h"
 
 
-
-
+extern QueueHandle_t robot_ctrl_queue;
+extern QueueHandle_t lvgl_rc_queue;
+extern SemaphoreHandle_t wifi_info_semaphore;
 // 超时设置 (毫秒)
 #define SESSION_TIMEOUT_MS 3000  // 3秒没收到控制者的消息，自动踢下线
 #define MOTOR_FAILSAFE_MS  500   // 500ms 没收到新指令，电机自动停转
@@ -47,11 +48,28 @@ typedef struct {
     int x; // 
     int y; // 
 } robot_ctrl_t;
+typedef struct JoystickDataStruct
+{
+    double x;
+    double y;
+    double long_value;
+    int angle;
+}JoystickDataStruct;
+typedef struct UiDataStruct
+{
+    JoystickDataStruct joystick1;
+    JoystickDataStruct joystick2;
 
+    float scroller_horiz1;
+    float scroller_vertical1;
 
+    int button_group1[10];
+    int button_group2[10];
+}UiDataStruct;
 
-
+extern char wifi_info_buf[256];
 void wifi_init_sta(app_config_t *config);
 
+void uart_task_init(void);
 #endif
 

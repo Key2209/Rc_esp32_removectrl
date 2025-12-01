@@ -9,6 +9,7 @@ lv_obj_t * uic_wifiINFOScreen;
 lv_obj_t * ui_wifiINFOScreen = NULL;
 lv_obj_t * ui_TextArea1 = NULL;
 lv_obj_t * ui_TextArea2 = NULL;
+lv_obj_t * ui_TextArea3 = NULL;
 // event funtions
 
 // build funtions
@@ -22,9 +23,9 @@ void ui_wifiINFOScreen_screen_init(void)
     lv_obj_set_width(ui_TextArea1, 129);
     lv_obj_set_height(ui_TextArea1, LV_SIZE_CONTENT);    /// 73
     lv_obj_set_x(ui_TextArea1, 0);
-    lv_obj_set_y(ui_TextArea1, 22);
+    lv_obj_set_y(ui_TextArea1, -30);
     lv_obj_set_align(ui_TextArea1, LV_ALIGN_CENTER);
-    lv_textarea_set_text(ui_TextArea1, "WIFI:1034esp32\n\nPSW:20041219");
+    lv_textarea_set_text(ui_TextArea1, "WIFI:1034esp32\nPSW:20041219");
     lv_textarea_set_placeholder_text(ui_TextArea1, "Placeholder...");
     lv_textarea_set_one_line(ui_TextArea1, true);
 
@@ -32,14 +33,39 @@ void ui_wifiINFOScreen_screen_init(void)
     lv_obj_set_width(ui_TextArea2, 216);
     lv_obj_set_height(ui_TextArea2, 54);
     lv_obj_set_x(ui_TextArea2, 5);
-    lv_obj_set_y(ui_TextArea2, -59);
+    lv_obj_set_y(ui_TextArea2, -90);
     lv_obj_set_align(ui_TextArea2, LV_ALIGN_CENTER);
     lv_textarea_set_text(ui_TextArea2, "	    Connect ESP32wifi\nfor network configuration");
     lv_textarea_set_placeholder_text(ui_TextArea2, "Placeholder...");
 
+
+    ui_TextArea3 = lv_textarea_create(ui_wifiINFOScreen);
+    // lv_obj_set_width(ui_TextArea3, 129);
+    // lv_obj_set_height(ui_TextArea3, LV_SIZE_CONTENT);    /// 73
+    lv_obj_set_width(ui_TextArea3, 216);
+    lv_obj_set_height(ui_TextArea3, 90);
+    lv_obj_set_x(ui_TextArea3, 0);
+    lv_obj_set_y(ui_TextArea3, 60);
+    lv_obj_set_align(ui_TextArea3, LV_ALIGN_CENTER);
+    lv_textarea_set_text(ui_TextArea3, "WIFI INFO");
+    // lv_textarea_set_placeholder_text(ui_TextArea3, "Placeholder...");
+    // lv_textarea_set_one_line(ui_TextArea3, true);
+
+
     uic_wifiINFOScreen = ui_wifiINFOScreen;
 
 }
+
+void setWifiInfoText(const char* info)
+{
+    if (ui_TextArea3) {
+
+        lv_textarea_set_text(ui_TextArea3, info);
+        //lv_obj_set_height(ui_TextArea3, LV_SIZE_CONTENT);
+    }
+}
+
+
 
 void ui_wifiINFOScreen_screen_destroy(void)
 {

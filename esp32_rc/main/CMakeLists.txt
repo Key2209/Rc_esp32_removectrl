@@ -3,6 +3,8 @@ file(GLOB_RECURSE SRC_UI ${CMAKE_SOURCE_DIR} "ui/*.c")
 
 
 idf_component_register(SRCS 
+
+                   
                     "esp32_rc.c"
                     "lcd/lcd_init.c"
                     "lcd/reset_ui.c"
@@ -16,6 +18,7 @@ idf_component_register(SRCS
 
 
                     "wifi/sta_communicate/udp_task.c"
+                    "wifi/sta_communicate/uart_send_task.c"
                     INCLUDE_DIRS
                      "."
                      "lcd"

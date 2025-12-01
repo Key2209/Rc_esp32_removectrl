@@ -18,7 +18,7 @@ extern lv_obj_t * ui_TextArea1;
 extern lv_obj_t * ui_TextArea2;
 // CUSTOM VARIABLES
 extern lv_obj_t * uic_wifiINFOScreen;
-
+void setWifiInfoText(const char* info);
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif
