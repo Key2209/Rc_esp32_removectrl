@@ -22,12 +22,15 @@
 #include "esp_http_server.h"
 #include "dns_server.h"
 
+#include "my_ota.h"
+
 #include "nvs_manager.h"
 #include "esp_event_base.h"
 #include "udp_task.h"
 #define EXAMPLE_ESP_WIFI_SSID "ESP32_1034"
 #define EXAMPLE_ESP_WIFI_PASS "20041219"
 #define EXAMPLE_MAX_STA_CONN 6
+
 
 app_config_t my_wifi_config;
 /*
@@ -248,9 +251,12 @@ static httpd_handle_t start_webserver(void)
         ESP_LOGI(TAG, "Registering URI handlers");
         httpd_register_uri_handler(server, &root);//根目录页面
         httpd_register_uri_handler(server, &api_config);//api接收接口
+            // ★★★ 【新增】 2. 注册 OTA 处理接口 ★★★
+        register_ota_handler(server); // 注册 OTA 处理函数
         httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);//404处理
     }
     return server;
+
 }
 
 void wifi_ap_init(void)
@@ -292,79 +298,16 @@ void wifi_ap_init(void)
 
 
 
-// WiFi事件处理函数
-// static void wifi_sta_event_handler(void* arg, esp_event_base_t event_base,
-//                                 int32_t event_id, void* event_data)
-// {
-//    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-//         ESP_LOGI(TAG, "WiFi STA 启动");
-//         // esp_wifi_connect(); // 可以在这里自动连接
-//     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-//         ESP_LOGI(TAG, "WiFi 断开连接，尝试重连...");
-//         // esp_wifi_connect(); // 可以在这里自动重连
-//     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-//         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-//         ESP_LOGI(TAG, "获取到IP地址: " IPSTR, IP2STR(&event->ip_info.ip));
-        
-//         // 方法1：使用事件数据中的IP信息（推荐）
-//         ESP_LOGI(TAG, "=== 网络信息（来自事件）===");
-//         ESP_LOGI(TAG, "IP地址: " IPSTR, IP2STR(&event->ip_info.ip));
-//         ESP_LOGI(TAG, "子网掩码: " IPSTR, IP2STR(&event->ip_info.netmask));
-//         ESP_LOGI(TAG, "网关: " IPSTR, IP2STR(&event->ip_info.gw));
-        
-//         // 方法2：获取STA网络接口的IP信息
-//         esp_netif_t *sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-//         if (sta_netif) {
-//             esp_netif_ip_info_t ip_info;
-//             if (esp_netif_get_ip_info(sta_netif, &ip_info) == ESP_OK) {
-//                 ESP_LOGI(TAG, "=== 网络信息（从接口获取）===");
-//                 ESP_LOGI(TAG, "IP地址: " IPSTR, IP2STR(&ip_info.ip));
-//                 ESP_LOGI(TAG, "子网掩码: " IPSTR, IP2STR(&ip_info.netmask));
-//                 ESP_LOGI(TAG, "网关: " IPSTR, IP2STR(&ip_info.gw));
-//             }
-//         }
-//         ESP_LOGI(TAG, "=================");
-//     }
-// }
-// void wifi_init_sta(app_config_t *config)
-// {
-//     esp_netif_create_default_wifi_sta();
-//     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-//     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-//     // 配置 STA
-//     wifi_config_t wifi_config = {0};
-    
-//     // 把我们的 struct 数据复制给 ESP-IDF 的 struct
-//     strncpy((char *)wifi_config.sta.ssid, config->ssid, sizeof(wifi_config.sta.ssid));
-//     strncpy((char *)wifi_config.sta.password, config->password, sizeof(wifi_config.sta.password));
-    
-//     ESP_LOGI(TAG, "Connecting to SSID: %s", wifi_config.sta.ssid);
-//         // 注册事件处理
-//     esp_event_handler_instance_t instance_any_id;
-//     esp_event_handler_instance_t instance_got_ip;
-//     esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_sta_event_handler, NULL, &instance_any_id);
-//     esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_sta_event_handler, NULL, &instance_got_ip);
-
-//     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-//     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
-//     ESP_ERROR_CHECK(esp_wifi_start());
-    
-//     esp_wifi_connect(); // 开始连接
-// }
-
-
-
 void wifi_app_init()
 {
 
     // 1. 初始化 NVS (必须放在最前面)
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
+    // esp_err_t ret = nvs_flash_init();
+    // if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    //   ESP_ERROR_CHECK(nvs_flash_erase());
+    //   ret = nvs_flash_init();
+    // }
+    // ESP_ERROR_CHECK(ret);
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());

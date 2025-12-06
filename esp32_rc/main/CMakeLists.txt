@@ -15,6 +15,7 @@ idf_component_register(SRCS
                     "wifi/ap/ap_connect.c"
                     "wifi/ap/dns_server.c"
                     "wifi/ap/nvs_manager.c"
+                    "wifi/ap/my_ota.c"
 
 
                     "wifi/sta_communicate/udp_task.c"

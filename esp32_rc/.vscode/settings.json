@@ -31,7 +31,9 @@
         "esp_event_internal.h": "c",
         "esp_event_base.h": "c",
         "uart.h": "c",
-        "udp_task.h": "c"
+        "udp_task.h": "c",
+        "param.h": "c",
+        "my_ota.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

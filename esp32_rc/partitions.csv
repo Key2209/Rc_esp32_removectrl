@@ -1,5 +1,44 @@
 # Name,   Type, SubType, Offset,  Size, Flags
 # Note: if you have increased the bootloader size, make sure to update the offsets to avoid overlap
-nvs,      data, nvs,        0x10000,   0x6000,
-phy_init, data, phy,               ,   0x1000,
-factory,  app,  factory,           ,   0x2c0000,
+# nvs,      data, nvs,        0x10000,   0x6000,
+# phy_init, data, phy,               ,   0x1000,
+# factory,  app,  factory,           ,   3M,
+
+# ESP-IDF Partition Table
+# Name,   Type, SubType, Offset,  Size, Flags
+# nvs,      data, nvs,     0x9000,  0x4000,
+# otadata,  data, ota,     0xd000,  0x2000,
+# phy_init, data, phy,     0xf000,  0x1000,
+# factory,  app,  factory, 0x10000,  3M,
+# ota_0,    app,  ota_0,   0x310000, 3M,
+# ota_1,    app,  ota_1,   0x610000, 3M,
+
+
+#
+# ESP-IDF Partition Table for 16MB Flash with Secure Boot/Signing support.
+# Increased offsets for Bootloader safety (up to 64KB boundary) and 4MB App sizes.
+#
+# Name,   Type, SubType, Offset,     Size,   Flags
+# ------------------------------------------------------------------------------
+# 预留给 Bootloader (从 0x1000 开始，Bootloader size < 64KB)
+# Partition Table 从 0x10000 开始，为 Bootloader 留足了空间。
+
+# NVS (Non-Volatile Storage): 存储 Wi-Fi 配置, 蓝牙, NVS keys
+nvs,       data, nvs,     0x11000,    0x5000,
+# OTADATA: 存储下一次启动加载哪个 App 分区的标记
+otadata,   data, ota,     0x16000,    0x2000,
+# PHY_INIT: Wi-Fi PHY 校准数据
+phy_init,  data, phy,     0x18000,    0x1000,
+
+# FACTORY: 初始/备份应用程序 (4MB)
+factory,   app,  factory, 0x20000,    4M,
+
+# OTA_0: 应用程序槽位 0 (4MB)
+ota_0,     app,  ota_0,   0x420000,   4M,
+
+# OTA_1: 应用程序槽位 1 (4MB)
+ota_1,     app,  ota_1,   0x820000,   4M,
+
+
+# ------------------------------------------------------------------------------
+# 总计占用: 0xC20000 + 3M = 0xF20000 (约 15.1MB), 距离 16MB (0x1000000) 尚有余裕。

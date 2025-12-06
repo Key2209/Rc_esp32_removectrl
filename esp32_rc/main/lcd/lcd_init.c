@@ -47,7 +47,6 @@
 
 #define EXAMPLE_LVGL_TICK_PERIOD_MS 2
 
-
 #define EXAMPLE_LVGL_TASK_STACK_SIZE (5 * 1024)
 #define EXAMPLE_LVGL_TASK_PRIORITY 2
 
@@ -74,7 +73,6 @@ static lv_disp_drv_t disp_drv;      // contains callback functions
 esp_lcd_panel_handle_t panel_handle = NULL;
 esp_lcd_panel_io_handle_t io_handle = NULL;
 led_strip_handle_t led_strip;
-
 
 // esp_lcd面板io 写完成回调函数
 static bool example_notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
@@ -210,11 +208,17 @@ void lvgl_init()
 
     lvgl_mux = xSemaphoreCreateMutex();
     assert(lvgl_mux);
-    xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
+    // xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
+    xTaskCreatePinnedToCore(
+        example_lvgl_port_task,       // 任务函数
+        "LVGL_Task",                  // 任务名称
+        EXAMPLE_LVGL_TASK_STACK_SIZE, // 栈大小
+        NULL,                         // 任务参数
+        EXAMPLE_LVGL_TASK_PRIORITY,   // 优先级
+        NULL,                         // 任务句柄
+        1                             // 核心 ID (1 = APP_CPU)
+    );
 }
-
-
-
 
 // Set to 1 to use DMA for driving the LED strip, 0 otherwise
 // Please note the RMT DMA feature is only available on chips e.g. ESP32-S3/P4
@@ -263,14 +267,42 @@ led_strip_handle_t configure_led(void)
     ESP_LOGI(TAG, "Created LED strip object with RMT backend");
     return led_strip;
 }
+bool led_on_off = false;
+void led_strip_task(void *arg)
+{
+    while (1)
+    {
+        if (led_on_off)
+        {
+            /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
+            for (int i = 0; i < LED_STRIP_LED_COUNT; i++)
+            {
+                ESP_ERROR_CHECK(led_strip_set_pixel(led_strip, i, 5, 5, 5));
+            }
+            /* Refresh the strip to send data */
+            ESP_ERROR_CHECK(led_strip_refresh(led_strip));
+            ESP_LOGI(TAG, "LED ON!");
+        }
+        else
+        {
+            /* Set all LED off to clear all pixels */
+            ESP_ERROR_CHECK(led_strip_clear(led_strip));
+            ESP_LOGI(TAG, "LED OFF!");
+        }
+
+        led_on_off = !led_on_off;
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
 
 void led_init_all()
 {
-    init_gpio_output();//cs片选
+    init_gpio_output(); // cs片选
     spi_init();
     gpio_set_level(LED_GPIO_PIN, 1); // 屏幕背光
     button_init();
-    led_strip = configure_led();
+    //led_strip = configure_led();
+    //xTaskCreate(led_strip_task, "led_strip_task", 1024*2, NULL, 10, NULL);
+
     lvgl_init();
 }
-
