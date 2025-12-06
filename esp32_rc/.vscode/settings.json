@@ -33,7 +33,8 @@
         "uart.h": "c",
         "udp_task.h": "c",
         "param.h": "c",
-        "my_ota.h": "c"
+        "my_ota.h": "c",
+        "esp_partition.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

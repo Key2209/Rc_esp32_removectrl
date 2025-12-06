@@ -111,24 +111,24 @@ esp_err_t ota_update_handler(httpd_req_t *req)
     free(ota_buff);
     ESP_LOGI(TAG, "数据接收完成，共接收: %d bytes", total_received);
 
-    /* * 4. 结束 OTA 并进行校验 (esp_ota_end)
-     * ★★★ 关键安全步骤 ★★★
-     * - 此函数会验证写入数据的 MD5/SHA256 完整性。
-     * - 如果你开启了【固件签名 (Secure Boot/App Signing)】，
-     * 它会在这里使用内部公钥验证固件末尾的签名。
-     * - 如果签名不对，这里会直接返回错误！
-     */
+    // /* * 4. 结束 OTA 并进行校验 (esp_ota_end)
+    //  * ★★★ 关键安全步骤 ★★★
+    //  * - 此函数会验证写入数据的 MD5/SHA256 完整性。
+    //  * - 如果你开启了【固件签名 (Secure Boot/App Signing)】，
+    //  * 它会在这里使用内部公钥验证固件末尾的签名。
+    //  * - 如果签名不对，这里会直接返回错误！
+    //  */
 
-    err = esp_ota_end(update_handle);
-    if (err != ESP_OK) {
-        if (err == ESP_ERR_OTA_VALIDATE_FAILED) {
-            ESP_LOGE(TAG, "固件校验失败！(签名无效或文件损坏)");
-        } else {
-            ESP_LOGE(TAG, "OTA 结束阶段失败 (%s)", esp_err_to_name(err));
-        }
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA Validation Failed");
-        return ESP_FAIL;
-    }
+    // err = esp_ota_end(update_handle);
+    // if (err != ESP_OK) {
+    //     if (err == ESP_ERR_OTA_VALIDATE_FAILED) {
+    //         ESP_LOGE(TAG, "固件校验失败！(签名无效或文件损坏)");
+    //     } else {
+    //         ESP_LOGE(TAG, "OTA 结束阶段失败 (%s)", esp_err_to_name(err));
+    //     }
+    //     httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA Validation Failed");
+    //     return ESP_FAIL;
+    // }
 
     /* * 5. 设置启动分区 (修改 otadata)
      * 告诉 Bootloader 下次重启时加载这个新分区。

@@ -301,8 +301,8 @@ void led_init_all()
     spi_init();
     gpio_set_level(LED_GPIO_PIN, 1); // 屏幕背光
     button_init();
-    //led_strip = configure_led();
-    //xTaskCreate(led_strip_task, "led_strip_task", 1024*2, NULL, 10, NULL);
+    led_strip = configure_led();
+    xTaskCreate(led_strip_task, "led_strip_task", 1024*2, NULL, 10, NULL);
 
     lvgl_init();
 }
